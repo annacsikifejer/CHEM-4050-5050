@@ -1,0 +1,3 @@
+## Isothermal and Adiabatic Work Comparison:
+
+### Because the work done is relative to the surroundings, a lower number, or higher negative magnitude, indicates a larger amount of work performed. As a result, both the isothermal and adiabatic processes show an increase in the amount of work with increasing final volume, in a relationship that appears roughly linear for low final volumes and decreases in slope with an increase in volume. In addition, for all final volumes from the range observed, the work done during an isothermal expansion is greater than for adiabatic work expansion, and the magnitude of difference in work between the two methods increases with increasing final volume.
