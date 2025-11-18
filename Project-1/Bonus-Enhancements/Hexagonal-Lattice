@@ -1,9 +1,7 @@
-# Hexagonal Lattice
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
-import matplotlib.patches as patches # Import matplotlib.patches
+import matplotlib.patches as patches
 
 def initialize_lattice(size):
     lattice = np.zeros((size, size), dtype=int)
@@ -238,6 +236,9 @@ for i, param in enumerate(params):
 # Plotting using GridSpec as an alternative to subplots_mosaic
 fig = plt.figure(figsize=(10, 8), layout='constrained')
 gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 1])
+
+fig.text(0.5, 1.0, 'Ideal Mixture of N and H in Hexagonal Lattice - Phase Diagram', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.42, 'Ideal Mixture of N and H in Hexagonal Lattice - Lattice', ha='center', va='bottom', fontsize=14)
 
 ax_N_coverage = fig.add_subplot(gs[0, 0])
 ax_H_coverage = fig.add_subplot(gs[0, 1])
