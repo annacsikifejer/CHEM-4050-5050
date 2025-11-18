@@ -1,5 +1,3 @@
-# Additional Adsorbate
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -222,7 +220,6 @@ def plot_lattice(lattice, ax, title):
                 ax.text(x + 0.5, y + 0.5, 'C', ha='center', va='center', color='white', fontsize=12, fontweight='bold') # Label
     return ax
 
-
 # Parameters
 size = 4
 n_steps = 10000
@@ -269,9 +266,11 @@ for i, param in enumerate(params_list):
     mean_coverage_H[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
     mean_coverage_C[mu_N_idx, T_idx] = np.mean(coverage_C[-1000:]) # Store mean C coverage
 
-# Plotting using GridSpec to accommodate the new C coverage plot
 fig = plt.figure(figsize=(15, 8), layout='constrained') # Increased figure size
 gs = GridSpec(2, 4, figure=fig, height_ratios=[1, 1]) # Changed to 2x4 grid for C coverage
+
+fig.text(0.5, 1.0, 'Ideal Mixture of N and H with Additional Adsorbate C - Phase Diagram', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.43, 'Ideal Mixture of N and H with Additional Adsorbate C - Lattice', ha='center', va='bottom', fontsize=14)
 
 ax_N_coverage = fig.add_subplot(gs[0, 0])
 ax_H_coverage = fig.add_subplot(gs[0, 1])
