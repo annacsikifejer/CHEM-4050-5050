@@ -295,8 +295,8 @@ fig = plt.figure(figsize=(10, 40), layout='constrained')                        
 gs = GridSpec(10, 3, figure=fig, height_ratios=[1.5, 1, 1.5, 1, 1.5, 1, 1.5, 1, 1.5, 1])
 
 # Titles for first set (Ideal)
-fig.text(0.5, 0.99, 'Ideal Mixture of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
-fig.text(0.5, 0.90, 'Ideal Mixture of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 1.0, 'Ideal Mixture of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.87, 'Ideal Mixture of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
 # Axes for first set (Ideal)
 ax1_N_coverage = fig.add_subplot(gs[0, 0])
@@ -332,7 +332,7 @@ plot_lattice(final_lattice_ideal[6, 3], ax1_lattice_63, r'$\mu_N = 0$ eV, $T = 0
 
 # Titles for second set of plots (Repulsive)
 fig.text(0.5, 0.79, 'Repulsive Interactions of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
-fig.text(0.5, 0.70, 'Repulsive Interactions of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.67, 'Repulsive Interactions of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
 # Axes for second set (Repulsive)
 ax2_N_coverage = fig.add_subplot(gs[2, 0])
@@ -368,7 +368,7 @@ plot_lattice(final_lattice_repulsive[6, 3], ax2_lattice_63, r'$\mu_N = 0$ eV, $T
 
 # Titles for third set of plots (Attractive)
 fig.text(0.5, 0.59, 'Attractive Interactions of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
-fig.text(0.5, 0.50, 'Attractive Interactions of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.47, 'Attractive Interactions of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
 # Axes for third set (Attractive)
 ax3_N_coverage = fig.add_subplot(gs[4, 0])
@@ -404,7 +404,7 @@ plot_lattice(final_lattice_attractive[6, 3], ax3_lattice_63, r'$\mu_N = 0$ eV, $
 
 # Titles for fourth set of plots (Immiscible)
 fig.text(0.5, 0.39, 'Immiscible Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
-fig.text(0.5, 0.30, 'Immiscible Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.27, 'Immiscible Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
 # Axes for fourth set (Immiscible)
 ax4_N_coverage = fig.add_subplot(gs[6, 0])
@@ -440,7 +440,7 @@ plot_lattice(final_lattice_immiscible[6, 3], ax4_lattice_63, r'$\mu_N = 0$ eV, $
 
 # Titles for fifth set of plots ("Like Dissolves Unlike")
 fig.text(0.5, 0.19, '"Like Dissolves Unlike" Scenario - Phase Diagram', ha='center', va='bottom', fontsize=14)
-fig.text(0.5, 0.10, '"Like Dissolves Unlike" Scenario - Lattice', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.07, '"Like Dissolves Unlike" Scenario - Lattice', ha='center', va='bottom', fontsize=14)
 
 # Axes for fifth set ("Like Dissolves Unlike")
 ax5_N_coverage = fig.add_subplot(gs[8, 0])
