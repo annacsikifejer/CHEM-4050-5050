@@ -238,6 +238,9 @@ for i, param in enumerate(params):
 fig = plt.figure(figsize=(10, 8), layout='constrained')
 gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 1])
 
+fig.text(0.5, 1.0, 'Ideal Mixture of N and H with Particle Swap - Phase Diagram', ha='center', va='bottom', fontsize=14)
+fig.text(0.5, 0.44, 'Ideal Mixture of N and H with Particle Swap - Lattice', ha='center', va='bottom', fontsize=14)
+
 ax_N_coverage = fig.add_subplot(gs[0, 0])
 ax_H_coverage = fig.add_subplot(gs[0, 1])
 ax_Total_coverage = fig.add_subplot(gs[0, 2])
@@ -247,25 +250,25 @@ ax_lattice_63 = fig.add_subplot(gs[1, 2])
 
 # Subplot for mean coverage of N
 ax_N_coverage.pcolormesh(mus_N, Ts, mean_coverage_N.T, cmap='viridis', vmin=0, vmax=1)
-ax_N_coverage.set_title(r'$\/langle \theta_N \rangle$')
-ax_N_coverage.set_xlabel(r'$\/mu_N$')
+ax_N_coverage.set_title(r'$\langle \theta_N \rangle$')
+ax_N_coverage.set_xlabel(r'$\mu_N$')
 ax_N_coverage.set_ylabel(r'$T$')
 
 # Subplot for mean coverage of H
 ax_H_coverage.pcolormesh(mus_N, Ts, mean_coverage_H.T, cmap='viridis', vmin=0, vmax=1)
-ax_H_coverage.set_title(r'$\/langle \theta_H \rangle$')
-ax_H_coverage.set_xlabel(r'$\/mu_N$')
+ax_H_coverage.set_title(r'$\langle \theta_H \rangle$')
+ax_H_coverage.set_xlabel(r'$\mu_N$')
 ax_H_coverage.set_yticks([])
 
 # Subplot for mean total coverage
 cax = ax_Total_coverage.pcolormesh(mus_N, Ts, mean_coverage_N.T + mean_coverage_H.T, cmap='viridis', vmin=0, vmax=1)
-ax_Total_coverage.set_title(r'$\/langle \theta_N + \theta_H \rangle$')
-ax_Total_coverage.set_xlabel(r'$\/mu_N$')
+ax_Total_coverage.set_title(r'$\langle \theta_N + \theta_H \rangle$')
+ax_Total_coverage.set_xlabel(r'$\mu_N$')
 ax_Total_coverage.set_yticks([])
 fig.colorbar(cax, ax=ax_Total_coverage, location='right', fraction=0.1, pad=0.04)
 
-plot_lattice(final_lattice[0, 3], ax_lattice_03, r'$\/mu_N = -0.2$ eV, $T = 0.01 / k$')
-plot_lattice(final_lattice[3, 3], ax_lattice_33, r'$\/mu_N = -0.1$ eV, $T = 0.01 / k$')
-plot_lattice(final_lattice[6, 3], ax_lattice_63, r'$\/mu_N = 0$ eV, $T = 0.01 / k$')
+plot_lattice(final_lattice[0, 3], ax_lattice_03, r'$\mu_N = -0.2$ eV, $T = 0.01 / k$')
+plot_lattice(final_lattice[3, 3], ax_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$')
+plot_lattice(final_lattice[6, 3], ax_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$')
 
 plt.show()
