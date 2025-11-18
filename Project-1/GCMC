@@ -1,12 +1,12 @@
-import numpy as np                                      # Imports NumPy library as np
-import matplotlib.pyplot as plt                         # Imports MatPlotLib.pyplot as plt
-from matplotlib.gridspec import GridSpec                # Imports GridSpec submdodule of MatPlotLib
+import numpy as np                                                              # Imports NumPy library as np
+import matplotlib.pyplot as plt                                                 # Imports MatPlotLib.pyplot as plt
+from matplotlib.gridspec import GridSpec                                        # Imports GridSpec submdodule of MatPlotLib
 
-def initialize_lattice(size):
+def initialize_lattice(size):                                                   # Defines the initial square lattice (size * size)
     lattice = np.zeros((size, size), dtype=int)
     return lattice
 
-def compute_neighbor_indices(size):
+def compute_neighbor_indices(size):                                             # Defines the neighbor indicies function
     neighbor_indices = {}
     for x in range(size):
         for y in range(size):
@@ -19,38 +19,38 @@ def compute_neighbor_indices(size):
             neighbor_indices[(x, y)] = neighbors
     return neighbor_indices
 
-def calculate_interaction_energy(lattice, site, particle, neighbor_indices, epsilon_NN, epsilon_HH, epsilon_NH):
+def calculate_interaction_energy(lattice, site, particle, neighbor_indices, epsilon_NN, epsilon_HH, epsilon_NH):               # Calculates the interaction energies
     x, y = site
     interaction_energy = 0
     for neighbor_coords in neighbor_indices[(x, y)]:
         neighbor_particle = lattice[neighbor_coords]
         if neighbor_particle != 0:
-            if particle == 1:
+            if particle == 1:                                                   # Particle is nitrogen (N)
                 if neighbor_particle == 1:
                     interaction_energy += epsilon_NN
                 else:
                     interaction_energy += epsilon_NH
             else:
-                if neighbor_particle == 2:
+                if neighbor_particle == 2:                                      # Particle is hydrogen (H)
                     interaction_energy += epsilon_HH
                 else:
                     interaction_energy += epsilon_NH
     return interaction_energy
 
 
-def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):
+def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):         # Defines the attempt_move function
     size = lattice.shape[0]
-    N_sites = size * size
+    N_sites = size * size                                                       # Total number of sites = all spaces on square lattice
     beta = 1 / params['T']
     epsilon_N = params['epsilon_N']
     epsilon_H = params['epsilon_H']
     epsilon_NN = params['epsilon_NN']
     epsilon_HH = params['epsilon_HH']
     epsilon_NH = params['epsilon_NH']
-    mu_N = params['mu_N']
-    mu_H = params['mu_H']
+    mu_N = params['mu_N']                                                       # Chemical potential of N
+    mu_H = params['mu_H']                                                       # Chemical potential of H
 
-    if np.random.rand() < 0.5:
+    if np.random.rand() < 0.5:                                                  # Sets probability of adding / removing to 50%
         if N_empty == 0:
             return N_N, N_H, N_empty
 
@@ -62,17 +62,17 @@ def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):
             particle = 1
             mu = mu_N
             epsilon_adsorption = epsilon_N
-            N_s = N_N
+            N_s = N_N                                                           # Nitrogen is added
         else:
             particle = 2
             mu = mu_H
             epsilon_adsorption = epsilon_H
-            N_s = N_H
+            N_s = N_H                                                           # Hydrogen is added
 
         interaction_energy = calculate_interaction_energy(lattice, site, particle, neighbor_indices, epsilon_NN, epsilon_HH, epsilon_NH)
         delta_E = epsilon_adsorption + interaction_energy
 
-        acc_prob = min(1.0, (N_empty) / (N_s + 1) * np.exp(-beta * (delta_E - mu)))
+        acc_prob = min(1.0, (N_empty) / (N_s + 1) * np.exp(-beta * (delta_E - mu)))        # Sets acceptance proability
 
         if np.random.rand() < acc_prob:
             lattice[site] = particle
@@ -114,7 +114,7 @@ def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):
 
     return N_N, N_H, N_empty
 
-def run_simulation(size, n_steps, params):
+def run_simulation(size, n_steps, params):                                      # Defines the run_simulation function
     lattice = initialize_lattice(size)
     neighbor_indices = compute_neighbor_indices(size)
     N_sites = size * size
@@ -131,7 +131,7 @@ def run_simulation(size, n_steps, params):
 
     return lattice, coverage_N, coverage_H
 
-def plot_lattice(lattice, ax, title, pad=40):
+def plot_lattice(lattice, ax, title, pad=40):                                   # Defines the lattice plot function
     size = lattice.shape[0]
     ax.set_xlim(0, size)
     ax.set_ylim(0, size)
@@ -144,7 +144,7 @@ def plot_lattice(lattice, ax, title, pad=40):
         ax.plot([i, i], [0, size], color='lightgray', linewidth=0.5)
         ax.plot([0, size], [i, i], color='lightgray', linewidth=0.5)
 
-    for x in range(size):
+    for x in range(size):                                                       # Creates markers for N (blue) and H (red) atoms
         for y in range(size):
             if lattice[x, y] == 1:
                 ax.plot(x + 0.5, y + 0.5, 'o', color='blue', markersize=30)
@@ -155,8 +155,7 @@ def plot_lattice(lattice, ax, title, pad=40):
     return ax
 
 
-# Parameters for Ideal Mixture
-size = 4
+size = 4                                                                        # Ideal Mixture Scenario
 n_steps = 10000
 mus_A = np.linspace(-0.2, 0, 7)
 Ts = np.linspace(0.001, 0.019, 7)
@@ -174,7 +173,6 @@ for mu_A in mus_A:
             'T': T
         })
 
-# Run the simulation for Ideal Mixture
 np.random.seed(42)
 final_lattice_ideal = np.zeros((len(mus_A), len(Ts), size, size))
 mean_coverage_N_ideal = np.zeros((len(mus_A), len(Ts)))
@@ -185,8 +183,7 @@ for i, param in enumerate(params_ideal):
     mean_coverage_N_ideal[i // len(Ts), i % len(Ts)] = np.mean(coverage_N[-1000:])
     mean_coverage_H_ideal[i // len(Ts), i % len(Ts)] = np.mean(coverage_H[-1000:])
 
-# Parameters for Repulsive Interactions
-params_repulsive = []
+params_repulsive = []                                                           # Repulsive Interactions Scenario
 for mu_N_val in mus_A:
     for T in Ts:
         params_repulsive.append({
@@ -200,8 +197,7 @@ for mu_N_val in mus_A:
             'T': T
         })
 
-# Run the simulation for Repulsive Interactions
-np.random.seed(43)
+np.random.seed(42)
 final_lattice_repulsive = np.zeros((len(mus_A), len(Ts), size, size), dtype=int)
 mean_coverage_N_repulsive = np.zeros((len(mus_A), len(Ts)))
 mean_coverage_H_repulsive = np.zeros((len(mus_A), len(Ts)))
@@ -214,8 +210,7 @@ for i, param in enumerate(params_repulsive):
     mean_coverage_N_repulsive[mu_N_idx, T_idx] = np.mean(coverage_N[-1000:])
     mean_coverage_H_repulsive[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
 
-# Parameters for Attractive Interactions
-params_attractive = []
+params_attractive = []                                                          # Attractive Interactions Scenario
 for mu_N_val in mus_A:
     for T in Ts:
         params_attractive.append({
@@ -229,8 +224,7 @@ for mu_N_val in mus_A:
             'T': T
         })
 
-# Run the simulation for Attractive Interactions
-np.random.seed(44)
+np.random.seed(42)
 final_lattice_attractive = np.zeros((len(mus_A), len(Ts), size, size), dtype=int)
 mean_coverage_N_attractive = np.zeros((len(mus_A), len(Ts)))
 mean_coverage_H_attractive = np.zeros((len(mus_A), len(Ts)))
@@ -243,8 +237,7 @@ for i, param in enumerate(params_attractive):
     mean_coverage_N_attractive[mu_N_idx, T_idx] = np.mean(coverage_N[-1000:])
     mean_coverage_H_attractive[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
 
-# Parameters for Immiscible Nitrogen and Hydrogen
-params_immiscible = []
+params_immiscible = []                                                          # Immiscible Nitrogen and Hydrogen Scenario
 for mu_N_val in mus_A:
     for T in Ts:
         params_immiscible.append({
@@ -258,8 +251,7 @@ for mu_N_val in mus_A:
             'T': T
         })
 
-# Run the simulation for Immiscible Interactions
-np.random.seed(45)
+np.random.seed(42)
 final_lattice_immiscible = np.zeros((len(mus_A), len(Ts), size, size), dtype=int)
 mean_coverage_N_immiscible = np.zeros((len(mus_A), len(Ts)))
 mean_coverage_H_immiscible = np.zeros((len(mus_A), len(Ts)))
@@ -272,8 +264,7 @@ for i, param in enumerate(params_immiscible):
     mean_coverage_N_immiscible[mu_N_idx, T_idx] = np.mean(coverage_N[-1000:])
     mean_coverage_H_immiscible[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
 
-# Parameters for "Like Dissolves Unlike" Scenario
-params_like_dissolves_unlike = []
+params_like_dissolves_unlike = []                                               # "Like Dissolves Unlike" Scenario
 for mu_N_val in mus_A:
     for T in Ts:
         params_like_dissolves_unlike.append({
@@ -287,8 +278,7 @@ for mu_N_val in mus_A:
             'T': T
         })
 
-# Run the simulation for "Like Dissolves Unlike" Scenario
-np.random.seed(46) # New seed for the fifth simulation
+np.random.seed(42)
 final_lattice_like_dissolves_unlike = np.zeros((len(mus_A), len(Ts), size, size), dtype=int)
 mean_coverage_N_like_dissolves_unlike = np.zeros((len(mus_A), len(Ts)))
 mean_coverage_H_like_dissolves_unlike = np.zeros((len(mus_A), len(Ts)))
@@ -301,16 +291,14 @@ for i, param in enumerate(params_like_dissolves_unlike):
     mean_coverage_N_like_dissolves_unlike[mu_N_idx, T_idx] = np.mean(coverage_N[-1000:])
     mean_coverage_H_like_dissolves_unlike[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
 
+fig = plt.figure(figsize=(10, 40), layout='constrained')                        # Plots the Temp vs Chem. Potential phase diagrams
+gs = GridSpec(10, 3, figure=fig, height_ratios=[1.5, 1, 1.5, 1, 1.5, 1, 1.5, 1, 1.5, 1])
 
-# Plot the T-mu_A phase diagram (combined)
-fig = plt.figure(figsize=(10, 40), layout='constrained') # Increased figure height for 5 sets
-gs = GridSpec(10, 3, figure=fig, height_ratios=[1.5, 1, 1.5, 1, 1.5, 1, 1.5, 1, 1.5, 1]) # 10 rows for five sets of colormaps and grids
-
-# Titles for first set of plots (Ideal Mixture)
+# Titles for first set (Ideal)
 fig.text(0.5, 0.99, 'Ideal Mixture of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
 fig.text(0.5, 0.90, 'Ideal Mixture of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
-# Axes for first set (Ideal Mixture)
+# Axes for first set (Ideal)
 ax1_N_coverage = fig.add_subplot(gs[0, 0])
 ax1_H_coverage = fig.add_subplot(gs[0, 1])
 ax1_Total_coverage = fig.add_subplot(gs[0, 2])
@@ -342,11 +330,11 @@ plot_lattice(final_lattice_ideal[0, 3], ax1_lattice_03, r'$\mu_N = -0.2$ eV, $T 
 plot_lattice(final_lattice_ideal[3, 3], ax1_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$', pad=40)
 plot_lattice(final_lattice_ideal[6, 3], ax1_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$', pad=40)
 
-# Titles for second set of plots (Repulsive Interactions)
+# Titles for second set of plots (Repulsive)
 fig.text(0.5, 0.79, 'Repulsive Interactions of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
 fig.text(0.5, 0.70, 'Repulsive Interactions of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
-# Axes for second set (Repulsive Interactions)
+# Axes for second set (Repulsive)
 ax2_N_coverage = fig.add_subplot(gs[2, 0])
 ax2_H_coverage = fig.add_subplot(gs[2, 1])
 ax2_Total_coverage = fig.add_subplot(gs[2, 2])
@@ -378,11 +366,11 @@ plot_lattice(final_lattice_repulsive[0, 3], ax2_lattice_03, r'$\mu_N = -0.2$ eV,
 plot_lattice(final_lattice_repulsive[3, 3], ax2_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$', pad=40)
 plot_lattice(final_lattice_repulsive[6, 3], ax2_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$', pad=40)
 
-# Titles for third set of plots (Attractive Interactions)
+# Titles for third set of plots (Attractive)
 fig.text(0.5, 0.59, 'Attractive Interactions of Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
 fig.text(0.5, 0.50, 'Attractive Interactions of Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
-# Axes for third set (Attractive Interactions)
+# Axes for third set (Attractive)
 ax3_N_coverage = fig.add_subplot(gs[4, 0])
 ax3_H_coverage = fig.add_subplot(gs[4, 1])
 ax3_Total_coverage = fig.add_subplot(gs[4, 2])
@@ -414,11 +402,11 @@ plot_lattice(final_lattice_attractive[0, 3], ax3_lattice_03, r'$\mu_N = -0.2$ eV
 plot_lattice(final_lattice_attractive[3, 3], ax3_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$', pad=40)
 plot_lattice(final_lattice_attractive[6, 3], ax3_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$', pad=40)
 
-# Titles for fourth set of plots (Immiscible Interactions)
+# Titles for fourth set of plots (Immiscible)
 fig.text(0.5, 0.39, 'Immiscible Nitrogen and Hydrogen - Phase Diagram', ha='center', va='bottom', fontsize=14)
 fig.text(0.5, 0.30, 'Immiscible Nitrogen and Hydrogen - Lattice', ha='center', va='bottom', fontsize=14)
 
-# Axes for fourth set (Immiscible Interactions)
+# Axes for fourth set (Immiscible)
 ax4_N_coverage = fig.add_subplot(gs[6, 0])
 ax4_H_coverage = fig.add_subplot(gs[6, 1])
 ax4_Total_coverage = fig.add_subplot(gs[6, 2])
@@ -450,11 +438,11 @@ plot_lattice(final_lattice_immiscible[0, 3], ax4_lattice_03, r'$\mu_N = -0.2$ eV
 plot_lattice(final_lattice_immiscible[3, 3], ax4_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$', pad=40)
 plot_lattice(final_lattice_immiscible[6, 3], ax4_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$', pad=40)
 
-# Titles for fifth set of plots ("Like Dissolves Unlike" Scenario)
+# Titles for fifth set of plots ("Like Dissolves Unlike")
 fig.text(0.5, 0.19, '"Like Dissolves Unlike" Scenario - Phase Diagram', ha='center', va='bottom', fontsize=14)
 fig.text(0.5, 0.10, '"Like Dissolves Unlike" Scenario - Lattice', ha='center', va='bottom', fontsize=14)
 
-# Axes for fifth set ("Like Dissolves Unlike" Scenario)
+# Axes for fifth set ("Like Dissolves Unlike")
 ax5_N_coverage = fig.add_subplot(gs[8, 0])
 ax5_H_coverage = fig.add_subplot(gs[8, 1])
 ax5_Total_coverage = fig.add_subplot(gs[8, 2])
@@ -462,26 +450,26 @@ ax5_lattice_03 = fig.add_subplot(gs[9, 0])
 ax5_lattice_33 = fig.add_subplot(gs[9, 1])
 ax5_lattice_63 = fig.add_subplot(gs[9, 2])
 
-# Subplots for mean coverage of N ("Like Dissolves Unlike" Scenario)
+# Subplots for mean coverage of N ("Like Dissolves Unlike")
 ax5_N_coverage.pcolormesh(mus_A, Ts, mean_coverage_N_like_dissolves_unlike.T, cmap='viridis', vmin=0, vmax=1)
 ax5_N_coverage.set_title(r'$\langle \theta_N \rangle$', pad=20)
 ax5_N_coverage.set_xlabel(r'$\mu_N$')
 ax5_N_coverage.set_ylabel(r'$T$')
 
-# Subplots for mean coverage of H ("Like Dissolves Unlike" Scenario)
+# Subplots for mean coverage of H ("Like Dissolves Unlike")
 ax5_H_coverage.pcolormesh(mus_A, Ts, mean_coverage_H_like_dissolves_unlike.T, cmap='viridis', vmin=0, vmax=1)
 ax5_H_coverage.set_title(r'$\langle \theta_H \rangle$', pad=20)
 ax5_H_coverage.set_xlabel(r'$\mu_N$')
 ax5_H_coverage.set_yticks([])
 
-# Mean total coverage ("Like Dissolves Unlike" Scenario)
+# Mean total coverage ("Like Dissolves Unlike")
 cax5 = ax5_Total_coverage.pcolormesh(mus_A, Ts, mean_coverage_N_like_dissolves_unlike.T + mean_coverage_H_like_dissolves_unlike.T, cmap='viridis', vmin=0, vmax=1)
 ax5_Total_coverage.set_title(r'$\langle \theta_N + \theta_H \rangle$', pad=20)
 ax5_Total_coverage.set_xlabel(r'$\mu_N$')
 ax5_Total_coverage.set_yticks([])
 fig.colorbar(cax5, ax=ax5_Total_coverage, location='right', fraction=0.1, pad=0.04)
 
-# Lattice plots ("Like Dissolves Unlike" Scenario)
+# Lattice plots ("Like Dissolves Unlike")
 plot_lattice(final_lattice_like_dissolves_unlike[0, 3], ax5_lattice_03, r'$\mu_N = -0.2$ eV, $T = 0.01 / k$', pad=40)
 plot_lattice(final_lattice_like_dissolves_unlike[3, 3], ax5_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$', pad=40)
 plot_lattice(final_lattice_like_dissolves_unlike[6, 3], ax5_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$', pad=40)
