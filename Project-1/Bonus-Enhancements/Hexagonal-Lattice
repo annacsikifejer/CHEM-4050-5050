@@ -1,9 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-import matplotlib.patches as patches
+import numpy as np                                                              # Imports NumPy library as np
+import matplotlib.pyplot as plt                                                 # Imports MatPlotLib.pyplot as plt
+from matplotlib.gridspec import GridSpec                                        # Imports GridSpec submdodule of MatPlotLib
+import matplotlib.patches as patches                                            # Imports the patches submodule of MatPlotLib
 
-def initialize_lattice(size):
+def initialize_lattice(size):                                                   # Defines the initial square lattice (size * size)
     lattice = np.zeros((size, size), dtype=int)
     return lattice
 
@@ -17,11 +17,10 @@ def compute_neighbor_indices_hex(size):
                 (x, (y - 1) % size),
                 (x, (y + 1) % size)
             ]
-            # Diagonal neighbors based on row parity
-            if y % 2 == 0:  # Even row
+            if y % 2 == 0:
                 neighbors.append(((x + 1) % size, (y - 1) % size))
                 neighbors.append(((x + 1) % size, (y + 1) % size))
-            else:  # Odd row
+            else:
                 neighbors.append(((x - 1) % size, (y - 1) % size))
                 neighbors.append(((x - 1) % size, (y + 1) % size))
 
@@ -34,15 +33,15 @@ def calculate_interaction_energy(lattice, site, particle, neighbor_indices, epsi
     for neighbor_coords in neighbor_indices[(x, y)]:
         neighbor_particle = lattice[neighbor_coords]
         if neighbor_particle != 0:
-            if particle == 1:  # Particle N
+            if particle == 1:
                 if neighbor_particle == 1:
                     interaction_energy += epsilon_NN
-                else:  # Neighbor is Particle H
+                else:
                     interaction_energy += epsilon_NH
-            else:  # Particle H
+            else:
                 if neighbor_particle == 2:
                     interaction_energy += epsilon_HH
-                else:  # Neighbor is Particle N
+                else:
                     interaction_energy += epsilon_NH
     return interaction_energy
 
@@ -59,46 +58,39 @@ def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):
     mu_N = params['mu_N']
     mu_H = params['mu_H']
 
-    if np.random.rand() < 0.5:  # Decide whether to add or remove a particle (50% chance each)
-        # IF adding a particle:
+    if np.random.rand() < 0.5:
         if N_empty == 0:
-            return N_N, N_H, N_empty  # No empty sites available
+            return N_N, N_H, N_empty
 
         empty_sites_coords = np.argwhere(lattice == 0)
         chosen_idx = np.random.randint(0, len(empty_sites_coords))
         site = tuple(empty_sites_coords[chosen_idx])
 
-        if np.random.rand() < 0.5:  # Decide which particle to add (N or H) with equal probability
-            # IF adding Particle N:
+        if np.random.rand() < 0.5:
             particle = 1
             mu = mu_N
             epsilon_adsorption = epsilon_N
             N_s = N_N
-        else:  # Adding Particle H
+        else:
             particle = 2
             mu = mu_H
             epsilon_adsorption = epsilon_H
             N_s = N_H
 
-        # CALCULATE 'delta_E' = 'epsilon' + calculate_interaction_energy(...)
         interaction_energy = calculate_interaction_energy(lattice, site, particle, neighbor_indices, epsilon_NN, epsilon_HH, epsilon_NH)
         delta_E = epsilon_adsorption + interaction_energy
 
-        # CALCULATE acceptance probability 'acc_prob' = MIN[1, (N_empty) / (N_s + 1) * exp(-beta * (delta_E - mu))]
         acc_prob = min(1.0, (N_empty) / (N_s + 1) * np.exp(-beta * (delta_E - mu)))
 
-        # GENERATE a random number 'r' between 0 and 1
-        # IF 'r' < 'acc_prob':
         if np.random.rand() < acc_prob:
             lattice[site] = particle
-            # UPDATE counts:
             if particle == 1:
                 N_N += 1
             else:
                 N_H += 1
             N_empty -= 1
-    else:  # Removing a particle
-        if N_N + N_H == 0:  # No particles to remove
+    else:
+        if N_N + N_H == 0:
             return N_N, N_H, N_empty
 
         occupied_sites_coords = np.argwhere(lattice != 0)
@@ -110,18 +102,18 @@ def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):
             mu = mu_N
             epsilon_adsorption = epsilon_N
             N_s = N_N
-        else:  # Particle H
+        else:
             mu = mu_H
             epsilon_adsorption = epsilon_H
             N_s = N_H
 
         interaction_energy = calculate_interaction_energy(lattice, site, particle, neighbor_indices, epsilon_NN, epsilon_HH, epsilon_NH)
-        delta_E = -(epsilon_adsorption + interaction_energy) # Energy change is negative of the energy it had
+        delta_E = -(epsilon_adsorption + interaction_energy)
 
         acc_prob = min(1.0, N_s / (N_empty + 1) * np.exp(-beta * (delta_E + mu)))
 
         if np.random.rand() < acc_prob:
-            lattice[site] = 0  # Remove particle
+            lattice[site] = 0
             if particle == 1:
                 N_N -= 1
             else:
@@ -131,57 +123,41 @@ def attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params):
     return N_N, N_H, N_empty
 
 def run_simulation(size, n_steps, params):
-    # INITIALIZE 'lattice' using initialize_lattice(size)
     lattice = initialize_lattice(size)
-    # COMPUTE 'neighbor_indices' using compute_neighbor_indices(size)
     neighbor_indices = compute_neighbor_indices_hex(size)
     N_sites = size * size
-    # INITIALIZE counts:
-    # 'N_N' = 0
-    # 'N_H' = 0
-    # 'N_empty' = 'N_sites'
     N_N = 0
     N_H = 0
     N_empty = N_sites
-    # CREATE arrays 'coverage_N' and 'coverage_H' of length 'n_steps'
     coverage_N = np.zeros(n_steps)
     coverage_H = np.zeros(n_steps)
 
-    # FOR 'step' FROM 0 TO 'n_steps' - 1:
     for step in range(n_steps):
-        # UPDATE 'N_N', 'N_H', 'N_empty' by calling attempt_move(...)
         N_N, N_H, N_empty = attempt_move(lattice, N_N, N_H, N_empty, neighbor_indices, params)
-        # SET coverage_N[step] = 'N_N' / 'N_sites'
         coverage_N[step] = N_N / N_sites
-        # SET coverage_H[step] = 'N_H' / 'N_sites'
         coverage_H[step] = N_H / N_sites
 
-    # RETURN 'lattice', 'coverage_N', 'coverage_H'
     return lattice, coverage_N, coverage_H
 
 def plot_hex_lattice(lattice, ax, title):
     size = lattice.shape[0]
-    # Calculate dimensions for hexagonal grid
     width = size + 0.5
-    height = size * 0.75 + 0.25 # Adjust height for hex grid
+    height = size * 0.75 + 0.25
 
-    ax.set_xlim(-0.5, width) # Adjusted for hex grid
-    ax.set_ylim(-0.5, height) # Adjusted for hex grid
+    ax.set_xlim(-0.5, width)
+    ax.set_ylim(-0.5, height)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_aspect('equal', adjustable='box')
     ax.set_title(title)
 
-    # Radius of the circumcircle for a regular hexagon, adjusted for spacing
     hex_radius = 0.45
-    # Side length = hex_radius
 
     for col in range(size):
         for row in range(size):
             x_center = col + 0.5 + 0.5 * (row % 2)
             y_center = row * 0.75 + 0.5
 
-            # Draw the hexagonal cell
             hexagon = patches.RegularPolygon((x_center, y_center), numVertices=6, radius=hex_radius,
                                              orientation=np.radians(0), facecolor='white', edgecolor='lightgray', linewidth=0.5)
             ax.add_patch(hexagon)
@@ -193,7 +169,6 @@ def plot_hex_lattice(lattice, ax, title):
                 ax.plot(x_center, y_center, 'o', color='red', markersize=18)
                 ax.text(x_center, y_center, 'H', ha='center', va='center', color='white', fontsize=12, fontweight='bold')
     return ax
-
 
 # Parameters
 size = 4
@@ -211,29 +186,24 @@ for mu_N_val in mus_N:
             'epsilon_NH': 0,
             'mu_N': mu_N_val,
             'mu_H': -0.1,
-            'T': T  # Temperature (in units of k)
+            'T': T
         })
 
-# Run the simulation
 np.random.seed(42)
 
-# Pre-allocate arrays for results
 final_lattice = np.zeros((len(mus_N), len(Ts), size, size), dtype=int)
 mean_coverage_N = np.zeros((len(mus_N), len(Ts)))
 mean_coverage_H = np.zeros((len(mus_N), len(Ts)))
 
-# Loop through parameter combinations
 for i, param in enumerate(params):
     lattice, coverage_N, coverage_H = run_simulation(size, n_steps, param)
 
-    # Store results
-    mu_N_idx = i // len(Ts)
+    mu_N_idx = i // len(Ts)                                                     # Stores Results
     T_idx = i % len(Ts)
     final_lattice[mu_N_idx, T_idx] = lattice
     mean_coverage_N[mu_N_idx, T_idx] = np.mean(coverage_N[-1000:])
     mean_coverage_H[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
 
-# Plotting using GridSpec as an alternative to subplots_mosaic
 fig = plt.figure(figsize=(10, 8), layout='constrained')
 gs = GridSpec(2, 3, figure=fig, height_ratios=[1, 1])
 
@@ -266,15 +236,9 @@ ax_Total_coverage.set_xlabel(r'$\mu_N$')
 ax_Total_coverage.set_yticks([])
 fig.colorbar(cax, ax=ax_Total_coverage, location='right', fraction=0.1, pad=0.04)
 
-# Plot the final lattice configuration
-
-# mu_N = -0.2 eV and T = 0.01 / k (index for mus_N is 0, for Ts is 3) -> 0, 3
+# Hexagonal lattice grids
 plot_hex_lattice(final_lattice[0, 3], ax_lattice_03, r'$\mu_N = -0.2$ eV, $T = 0.01 / k$')
-
-# mu_N = -0.1 eV and T = 0.01 / k (index for mus_N is 3, for Ts is 3) -> 3, 3
 plot_hex_lattice(final_lattice[3, 3], ax_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$')
-
-# mu_N = 0 eV and T = 0.01 / k (index for mus_N is 6, for Ts is 3) -> 6, 3
 plot_hex_lattice(final_lattice[6, 3], ax_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$')
 
 plt.show()
