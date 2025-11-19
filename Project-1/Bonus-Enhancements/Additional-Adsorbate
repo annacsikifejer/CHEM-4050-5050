@@ -1,8 +1,8 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
+import numpy as np                                                              # Imports NumPy library as np
+import matplotlib.pyplot as plt                                                 # Imports MatPlotLib.pyplot as plt
+from matplotlib.gridspec import GridSpec                                        # Imports GridSpec submdodule of MatPlotLib
 
-def initialize_lattice(size):
+def initialize_lattice(size):                                                   # Defines the initial square lattice (size * size)
     lattice = np.zeros((size, size), dtype=int)
     return lattice
 
@@ -19,8 +19,7 @@ def compute_neighbor_indices(size):
             neighbor_indices[(x, y)] = neighbors
     return neighbor_indices
 
-# Modified function to include C particles and their interactions
-def calculate_interaction_energy(lattice, site, particle, neighbor_indices,
+def calculate_interaction_energy(lattice, site, particle, neighbor_indices,     # Adds C atom as additional adsorbate
                                  epsilon_NN, epsilon_HH, epsilon_NH,
                                  epsilon_NC, epsilon_HC, epsilon_CC):
     x, y = site
@@ -28,12 +27,12 @@ def calculate_interaction_energy(lattice, site, particle, neighbor_indices,
     for neighbor_coords in neighbor_indices[(x, y)]:
         neighbor_particle = lattice[neighbor_coords]
         if neighbor_particle != 0:
-            if particle == 1:  # Particle N
+            if particle == 1:
                 if neighbor_particle == 1:
                     interaction_energy += epsilon_NN
-                elif neighbor_particle == 2:  # Neighbor is Particle H
+                elif neighbor_particle == 2:
                     interaction_energy += epsilon_NH
-                elif neighbor_particle == 3: # Neighbor is Particle C
+                elif neighbor_particle == 3:
                     interaction_energy += epsilon_NC
             elif particle == 2:  # Particle H
                 if neighbor_particle == 1: # Neighbor is Particle N
@@ -78,49 +77,41 @@ def attempt_move(lattice, N_N, N_H, N_C, N_empty, neighbor_indices, params):
         chosen_idx = np.random.randint(0, len(empty_sites_coords))
         site = tuple(empty_sites_coords[chosen_idx])
 
-        # Decide which particle to add (N, H, or C) with equal probability
         r_particle_type = np.random.rand()
         if r_particle_type < 1/3:
-            # IF adding Particle N:
             particle = 1
             mu = mu_N
             epsilon_adsorption = epsilon_N
             N_s = N_N
         elif r_particle_type < 2/3:
-            # IF adding Particle H:
             particle = 2
             mu = mu_H
             epsilon_adsorption = epsilon_H
             N_s = N_H
-        else: # Adding Particle C
+        else:
             particle = 3
             mu = mu_C
             epsilon_adsorption = epsilon_C
             N_s = N_C
 
-        # CALCULATE 'delta_E' = 'epsilon' + calculate_interaction_energy(...)
         interaction_energy = calculate_interaction_energy(lattice, site, particle, neighbor_indices,
                                                          epsilon_NN, epsilon_HH, epsilon_NH,
                                                          epsilon_NC, epsilon_HC, epsilon_CC)
         delta_E = epsilon_adsorption + interaction_energy
 
-        # CALCULATE acceptance probability 'acc_prob' = MIN[1, (N_empty) / (N_s + 1) * np.exp(-beta * (delta_E - mu))]
         acc_prob = min(1.0, (N_empty) / (N_s + 1) * np.exp(-beta * (delta_E - mu)))
 
-        # GENERATE a random number 'r' between 0 and 1
-        # IF 'r' < 'acc_prob':
         if np.random.rand() < acc_prob:
             lattice[site] = particle
-            # UPDATE counts:
             if particle == 1:
                 N_N += 1
             elif particle == 2:
                 N_H += 1
-            else: # particle == 3
+            else:
                 N_C += 1
             N_empty -= 1
-    else:  # Removing a particle
-        if N_N + N_H + N_C == 0:  # No particles to remove
+    else:
+        if N_N + N_H + N_C == 0:
             return N_N, N_H, N_C, N_empty
 
         occupied_sites_coords = np.argwhere(lattice != 0)
@@ -132,11 +123,11 @@ def attempt_move(lattice, N_N, N_H, N_C, N_empty, neighbor_indices, params):
             mu = mu_N
             epsilon_adsorption = epsilon_N
             N_s = N_N
-        elif particle == 2:  # Particle H
+        elif particle == 2:
             mu = mu_H
             epsilon_adsorption = epsilon_H
             N_s = N_H
-        else: # particle == 3 (Particle C)
+        else:
             mu = mu_C
             epsilon_adsorption = epsilon_C
             N_s = N_C
@@ -144,80 +135,66 @@ def attempt_move(lattice, N_N, N_H, N_C, N_empty, neighbor_indices, params):
         interaction_energy = calculate_interaction_energy(lattice, site, particle, neighbor_indices,
                                                          epsilon_NN, epsilon_HH, epsilon_NH,
                                                          epsilon_NC, epsilon_HC, epsilon_CC)
-        delta_E = -(epsilon_adsorption + interaction_energy) # Energy change is negative of the energy it had
+        delta_E = -(epsilon_adsorption + interaction_energy)
 
         acc_prob = min(1.0, N_s / (N_empty + 1) * np.exp(-beta * (delta_E + mu)))
 
         if np.random.rand() < acc_prob:
-            lattice[site] = 0  # Remove particle
+            lattice[site] = 0
             if particle == 1:
                 N_N -= 1
             elif particle == 2:
                 N_H -= 1
-            else: # particle == 3
+            else:
                 N_C -= 1
             N_empty += 1
 
     return N_N, N_H, N_C, N_empty
 
 def run_simulation(size, n_steps, params):
-    # INITIALIZE 'lattice' using initialize_lattice(size)
     lattice = initialize_lattice(size)
-    # COMPUTE 'neighbor_indices' using compute_neighbor_indices(size)
     neighbor_indices = compute_neighbor_indices(size)
     N_sites = size * size
-    # INITIALIZE counts:
-    # 'N_N' = 0, 'N_H' = 0, 'N_C' = 0 (new)
-    # 'N_empty' = 'N_sites'
     N_N = 0
     N_H = 0
-    N_C = 0 # New
+    N_C = 0
     N_empty = N_sites
-    # CREATE arrays 'coverage_N', 'coverage_H', and 'coverage_C' (new) of length 'n_steps'
     coverage_N = np.zeros(n_steps)
     coverage_H = np.zeros(n_steps)
-    coverage_C = np.zeros(n_steps) # New
+    coverage_C = np.zeros(n_steps)
 
-    # FOR 'step' FROM 0 TO 'n_steps' - 1:
     for step in range(n_steps):
-        # UPDATE 'N_N', 'N_H', 'N_C', 'N_empty' by calling attempt_move(...)
         N_N, N_H, N_C, N_empty = attempt_move(lattice, N_N, N_H, N_C, N_empty, neighbor_indices, params)
-        # SET coverage_N[step] = 'N_N' / 'N_sites'
         coverage_N[step] = N_N / N_sites
-        # SET coverage_H[step] = 'N_H' / 'N_sites'
         coverage_H[step] = N_H / N_sites
-        # SET coverage_C[step] = 'N_C' / 'N_sites'
-        coverage_C[step] = N_C / N_sites # New
+        coverage_C[step] = N_C / N_sites
 
-    # RETURN 'lattice', 'coverage_N', 'coverage_H', 'coverage_C'
     return lattice, coverage_N, coverage_H, coverage_C
 
-# Modified function to visualize C particles
 def plot_lattice(lattice, ax, title):
-    size = lattice.shape[0]  # Assuming square lattice
+    size = lattice.shape[0]
     ax.set_xlim(0, size)
     ax.set_ylim(0, size)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_aspect('equal', adjustable='box')  # Ensure squares are square
+    ax.set_aspect('equal', adjustable='box')
     ax.set_title(title)
 
-    # Draw grid
     for i in range(size + 1):
         ax.plot([i, i], [0, size], color='lightgray', linewidth=0.5)
         ax.plot([0, size], [i, i], color='lightgray', linewidth=0.5)
 
     for x in range(size):
         for y in range(size):
-            if lattice[x, y] == 1:  # Particle N
-                ax.plot(x + 0.5, y + 0.5, 'o', color='blue', markersize=30) # Increased markersize
+            if lattice[x, y] == 1:
+                ax.plot(x + 0.5, y + 0.5, 'o', color='blue', markersize=30)
                 ax.text(x + 0.5, y + 0.5, 'N', ha='center', va='center', color='white', fontsize=12, fontweight='bold')
-            elif lattice[x, y] == 2:  # Particle H
-                ax.plot(x + 0.5, y + 0.5, 'o', color='red', markersize=30) # Increased markersize
+            elif lattice[x, y] == 2:
+                ax.plot(x + 0.5, y + 0.5, 'o', color='red', markersize=30)
                 ax.text(x + 0.5, y + 0.5, 'H', ha='center', va='center', color='white', fontsize=12, fontweight='bold')
-            elif lattice[x, y] == 3:  # Particle C (New)
-                ax.plot(x + 0.5, y + 0.5, 'o', color='green', markersize=30) # Distinct color
-                ax.text(x + 0.5, y + 0.5, 'C', ha='center', va='center', color='white', fontsize=12, fontweight='bold') # Label
+            elif lattice[x, y] == 3:
+                ax.plot(x + 0.5, y + 0.5, 'o', color='green', markersize=30)
+                ax.text(x + 0.5, y + 0.5, 'C', ha='center', va='center', color='white', fontsize=12, fontweight='bold')
     return ax
 
 # Parameters
@@ -225,57 +202,52 @@ size = 4
 n_steps = 10000
 mus_N = np.linspace(-0.2, 0, 7)
 Ts = np.linspace(0.001, 0.019, 7)
-params_list = [] # Renamed to avoid conflict with 'params' inside functions
+params_list = []
 for mu_N_val in mus_N:
     for T in Ts:
         params_list.append({
             'epsilon_N': -0.1,
             'epsilon_H': -0.1,
-            'epsilon_C': -0.1, # New parameter for C adsorption
+            'epsilon_C': -0.1,
             'epsilon_NN': 0,
             'epsilon_HH': 0,
             'epsilon_NH': 0,
-            'epsilon_NC': 0, # New interaction energy N-C
-            'epsilon_HC': 0, # New interaction energy H-C
-            'epsilon_CC': 0, # New interaction energy C-C
+            'epsilon_NC': 0,
+            'epsilon_HC': 0,
+            'epsilon_CC': 0,
             'mu_N': mu_N_val,
             'mu_H': -0.1,
-            'mu_C': -0.1, # New chemical potential for C
-            'T': T  # Temperature (in units of k)
+            'mu_C': -0.1,
+            'T': T
         })
 
-# Run the simulation
 np.random.seed(42)
 
-# Pre-allocate arrays for results
 final_lattice = np.zeros((len(mus_N), len(Ts), size, size), dtype=int)
 mean_coverage_N = np.zeros((len(mus_N), len(Ts)))
 mean_coverage_H = np.zeros((len(mus_N), len(Ts)))
-mean_coverage_C = np.zeros((len(mus_N), len(Ts))) # New array for C coverage
+mean_coverage_C = np.zeros((len(mus_N), len(Ts)))
 
-# Loop through parameter combinations
 for i, param in enumerate(params_list):
-    # Updated return values from run_simulation
     lattice, coverage_N, coverage_H, coverage_C = run_simulation(size, n_steps, param)
 
-    # Store results
     mu_N_idx = i // len(Ts)
     T_idx = i % len(Ts)
     final_lattice[mu_N_idx, T_idx] = lattice
     mean_coverage_N[mu_N_idx, T_idx] = np.mean(coverage_N[-1000:])
     mean_coverage_H[mu_N_idx, T_idx] = np.mean(coverage_H[-1000:])
-    mean_coverage_C[mu_N_idx, T_idx] = np.mean(coverage_C[-1000:]) # Store mean C coverage
+    mean_coverage_C[mu_N_idx, T_idx] = np.mean(coverage_C[-1000:])
 
-fig = plt.figure(figsize=(15, 8), layout='constrained') # Increased figure size
-gs = GridSpec(2, 4, figure=fig, height_ratios=[1, 1]) # Changed to 2x4 grid for C coverage
+fig = plt.figure(figsize=(15, 8), layout='constrained')
+gs = GridSpec(2, 4, figure=fig, height_ratios=[1, 1])
 
 fig.text(0.5, 1.0, 'Ideal Mixture of N and H with Additional Adsorbate C - Phase Diagram', ha='center', va='bottom', fontsize=14)
 fig.text(0.5, 0.43, 'Ideal Mixture of N and H with Additional Adsorbate C - Lattice', ha='center', va='bottom', fontsize=14)
 
 ax_N_coverage = fig.add_subplot(gs[0, 0])
 ax_H_coverage = fig.add_subplot(gs[0, 1])
-ax_C_coverage = fig.add_subplot(gs[0, 2]) # New subplot for C coverage
-ax_Total_coverage = fig.add_subplot(gs[0, 3]) # Shifted index
+ax_C_coverage = fig.add_subplot(gs[0, 2])
+ax_Total_coverage = fig.add_subplot(gs[0, 3])
 ax_lattice_03 = fig.add_subplot(gs[1, 0])
 ax_lattice_33 = fig.add_subplot(gs[1, 1])
 ax_lattice_63 = fig.add_subplot(gs[1, 2])
@@ -290,29 +262,23 @@ ax_N_coverage.set_ylabel(r'$T$')
 ax_H_coverage.pcolormesh(mus_N, Ts, mean_coverage_H.T, cmap='viridis', vmin=0, vmax=1)
 ax_H_coverage.set_title(r'$\langle \theta_H \rangle$')
 ax_H_coverage.set_xlabel(r'$\mu_N$')
-ax_H_coverage.set_ylabel(r'$T$') # Added ylabel for consistency
+ax_H_coverage.set_ylabel(r'$T$')
 
 # Subplot for mean coverage of C (New)
 ax_C_coverage.pcolormesh(mus_N, Ts, mean_coverage_C.T, cmap='viridis', vmin=0, vmax=1)
 ax_C_coverage.set_title(r'$\langle \theta_C \rangle$')
 ax_C_coverage.set_xlabel(r'$\mu_N$')
-ax_C_coverage.set_ylabel(r'$T$') # Added ylabel for consistency
+ax_C_coverage.set_ylabel(r'$T$')
 
 # Subplot for mean total coverage
-cax = ax_Total_coverage.pcolormesh(mus_N, Ts, (mean_coverage_N + mean_coverage_H + mean_coverage_C).T, cmap='viridis', vmin=0, vmax=1) # Updated calculation
-ax_Total_coverage.set_title(r'$\langle \theta_N + \theta_H + \theta_C \rangle$') # Updated title
+cax = ax_Total_coverage.pcolormesh(mus_N, Ts, (mean_coverage_N + mean_coverage_H + mean_coverage_C).T, cmap='viridis', vmin=0, vmax=1)
+ax_Total_coverage.set_title(r'$\langle \theta_N + \theta_H + \theta_C \rangle$')
 ax_Total_coverage.set_xlabel(r'$\mu_N$')
-ax_Total_coverage.set_ylabel(r'$T$') # Added ylabel for consistency
+ax_Total_coverage.set_ylabel(r'$T$')
 fig.colorbar(cax, ax=ax_Total_coverage, location='right', fraction=0.1, pad=0.04)
 
-# Plot the final lattice configuration
-# mu_N = -0.2 eV and T = 0.01 / k (index for mus_N is 0, for Ts is 3) -> 0, 3
 plot_lattice(final_lattice[0, 3], ax_lattice_03, r'$\mu_N = -0.2$ eV, $T = 0.01 / k$')
-
-# mu_N = -0.1 eV and T = 0.01 / k (index for mus_N is 3, for Ts is 3) -> 3, 3
 plot_lattice(final_lattice[3, 3], ax_lattice_33, r'$\mu_N = -0.1$ eV, $T = 0.01 / k$')
-
-# mu_N = 0 eV and T = 0.01 / k (index for mus_N is 6, for Ts is 3) -> 6, 3
 plot_lattice(final_lattice[6, 3], ax_lattice_63, r'$\mu_N = 0$ eV, $T = 0.01 / k$')
 
 plt.show()
