@@ -277,3 +277,428 @@ plt.title('Average Potential Energy vs Temperature')
 plt.legend()
 plt.grid(True)
 plt.show()
+
+# 16. Implement steepest_descent_minimization function
+def steepest_descent_minimization(positions, compute_forces_func, step_size, tolerance, box_size,
+                                  k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff,
+                                  max_iterations=10000):
+
+    for iteration in range(max_iterations):
+        # a. Calculate the current forces
+        forces = compute_forces_func(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff)
+
+        # b. Calculate the total force magnitude
+        total_force_magnitude = np.linalg.norm(forces) # Sum of the magnitudes of all forces
+
+        # c. If the total force magnitude is below tolerance, break the loop
+        if total_force_magnitude < tolerance:
+            print(f"Energy minimization converged in {iteration + 1} iterations. Total force magnitude: {total_force_magnitude:.4f}")
+            break
+
+        # d. Update the positions by moving them in the direction opposite to the forces
+        positions -= step_size * forces
+
+        # e. Ensure that the updated positions are wrapped using apply_pbc
+        positions = apply_pbc(positions, box_size)
+
+    else:
+        print(f"Energy minimization did not converge after {max_iterations} iterations. Final force magnitude: {total_force_magnitude:.4f}")
+
+    return positions
+
+
+# Simulation parameters (from 10fa15ea) - Only necessary ones included
+box_size = 100.0  # Size of the cubic box
+k = 1.0  # Spring constant
+r0 = 1.0  # Equilibrium bond length
+n_particles = 20  # Number of particles
+epsilon_repulsive = 1.0  # Depth of repulsive LJ potential
+epsilon_attractive = 0.5  # Depth of attractive LJ potential
+sigma = 1.0  # LJ potential parameter
+lj_force_cutoff = 2.5 * sigma  # Cutoff distance for Lennard-Jones forces
+
+# Define minimization parameters
+minimization_step_size = 0.001  # Step size for steepest descent
+minimization_tolerance = 0.1    # Convergence criterion for total force magnitude
+minimization_max_iterations = 50000 # Increased max_iterations for potentially slower convergence
+
+# Initialize a chain
+initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
+
+# Perform energy minimization
+minimized_positions = steepest_descent_minimization(
+    positions=initial_positions_for_minimization,
+    compute_forces_func=compute_total_forces,
+    step_size=minimization_step_size,
+    tolerance=minimization_tolerance,
+    box_size=box_size,
+    k=k,
+    r0=r0,
+    epsilon_repulsive=epsilon_repulsive,
+    epsilon_attractive=epsilon_attractive,
+    sigma=sigma,
+    lj_cutoff=lj_force_cutoff,
+    max_iterations=minimization_max_iterations
+)
+
+
+# Create a new figure and a 3D subplot
+fig = plt.figure(figsize=(12, 6))
+
+# Plot initial configuration
+ax1 = fig.add_subplot(121, projection='3d')
+ax1.scatter(initial_positions_for_minimization[:, 0], initial_positions_for_minimization[:, 1], initial_positions_for_minimization[:, 2],
+           color='red', s=50, label='Initial Beads')
+for i in range(n_particles - 1):
+    ax1.plot(initial_positions_for_minimization[i:i+2, 0], initial_positions_for_minimization[i:i+2, 1], initial_positions_for_minimization[i:i+2, 2],
+             color='gray', linestyle='-', linewidth=1)
+ax1.set_title('Initial Polymer Configuration')
+ax1.set_xlabel('X')
+ax1.set_ylabel('Y')
+ax1.set_zlabel('Z')
+ax1.view_init(elev=20, azim=-60)
+
+# Plot minimized configuration
+ax2 = fig.add_subplot(122, projection='3d')
+ax2.scatter(minimized_positions[:, 0], minimized_positions[:, 1], minimized_positions[:, 2],
+           color='blue', s=50, label='Minimized Beads')
+for i in range(n_particles - 1):
+    ax2.plot(minimized_positions[i:i+2, 0], minimized_positions[i:i+2, 1], minimized_positions[i:i+2, 2],
+             color='lightblue', linestyle='-', linewidth=1)
+ax2.set_title('Minimized Polymer Configuration (Steepest Descent)')
+ax2.set_xlabel('X')
+ax2.set_ylabel('Y')
+ax2.set_zlabel('Z')
+ax2.view_init(elev=20, azim=-60)
+
+plt.tight_layout()
+plt.show()
+
+for T in temperatures:
+    target_temperature = T
+
+    # Initialize a chain for minimization
+    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
+
+    # Perform energy minimization for the initial configuration of the current temperature run
+    print(f"  Minimizing initial configuration for T = {target_temperature:.2f}...")
+    minimized_positions = steepest_descent_minimization(
+        positions=initial_positions_for_minimization,
+        compute_forces_func=compute_total_forces,
+        step_size=minimization_step_size,
+        tolerance=minimization_tolerance,
+        box_size=box_size,
+        k=k,
+        r0=r0,
+        epsilon_repulsive=epsilon_repulsive,
+        epsilon_attractive=epsilon_attractive,
+        sigma=sigma,
+        lj_cutoff=lj_force_cutoff,
+        max_iterations=minimization_max_iterations
+    )
+
+    # Use minimized positions as the starting point for MD simulation
+    positions = minimized_positions
+
+    # Initialize velocities for the current temperature run
+    velocities = initialize_velocities(n_particles, target_temperature, mass)
+
+    # Initial forces calculation using the minimized positions
+    forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
+
+    # List to store potential energy during data collection phase
+    potential_energy_per_step = []
+
+    # Main simulation loop for the current temperature
+    for step in range(total_simulation_steps):
+        # Integrate equations of motion using Velocity Verlet
+        positions, velocities, forces = velocity_verlet(
+            positions, velocities, forces, dt, mass, box_size,
+            k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff
+        )
+
+        # Apply thermostat (velocity rescaling)
+        if step % rescale_interval == 0:
+            velocities = rescale_velocities(velocities, target_temperature, mass, n_particles)
+
+        # Data collection after equilibration
+        if step >= equilibration_steps:
+            current_potential_energy = calculate_total_potential_energy(
+                positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma,
+                lj_potential_cutoff_repulsive, lj_potential_cutoff_attractive
+            )
+            potential_energy_per_step.append(current_potential_energy)
+
+    # After simulation for current temperature, compute properties
+    Rg = calculate_radius_of_gyration(positions)
+    Ree = calculate_end_to_end_distance(positions)
+
+    Rg_values.append(Rg)
+    Ree_values.append(Ree)
+    potential_energies_avg.append(np.mean(potential_energy_per_step))
+
+
+# Plot Radius of Gyration vs Temperature
+plt.figure(figsize=(8, 6))
+plt.plot(temperatures, Rg_values, marker='o', linestyle='-', color='blue', label='Radius of Gyration (Rg)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('Radius of Gyration (Rg)')
+plt.title('Radius of Gyration vs Temperature (with Energy Minimization)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot End-to-End Distance vs Temperature
+plt.figure(figsize=(8, 6))
+plt.plot(temperatures, Ree_values, marker='o', linestyle='-', color='green', label='End-to-End Distance (Ree)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('End-to-End Distance (Ree)')
+plt.title('End-to-End Distance vs Temperature (with Energy Minimization)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot Average Potential Energy vs Temperature
+plt.figure(figsize=(8, 6))
+plt.plot(temperatures, potential_energies_avg, marker='o', linestyle='-', color='red', label='Average Potential Energy')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('Average Potential Energy (Reduced Units)')
+plt.title('Average Potential Energy vs Temperature (with Energy Minimization)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+# --- MODIFIED PARAMETERS FOR THIS RUN ---
+epsilon_repulsive = 2.0  # Increased depth of repulsive LJ potential (was 1.0)
+epsilon_attractive = 0.1 # Decreased depth of attractive LJ potential (was 0.5)
+# ----------------------------------------
+
+sigma = 1.0  # LJ potential parameter
+
+# Lennard-Jones cutoff distances
+lj_force_cutoff = 2.5 * sigma  # Cutoff distance for Lennard-Jones forces
+lj_potential_cutoff_repulsive = (2**(1/6)) * sigma  # Cutoff for repulsive 1-3 LJ potential energy (WCA)
+lj_potential_cutoff_attractive = 2.5 * sigma # Cutoff for attractive non-bonded LJ potential energy
+
+rescale_interval = 100  # Steps between velocity rescaling
+temperatures = np.linspace(0.1, 1.0, 10)  # Array of target temperatures
+
+# Minimization parameters (from 6385393b)
+minimization_step_size = 0.001  # Step size for steepest descent
+minimization_tolerance = 0.1    # Convergence criterion for total force magnitude
+minimization_max_iterations = 50000 # Increased max_iterations for potentially slower convergence
+
+
+# Lists to store collected data for the adjusted parameters
+Rg_values_adjusted = []
+Ree_values_adjusted = []
+potential_energies_avg_adjusted = []
+
+# Declare variables to store final configurations at lowest and highest temperatures for adjusted parameters
+positions_low_temp_adjusted = None
+positions_high_temp_adjusted = None
+
+for T in temperatures:
+    target_temperature = T
+
+    # Initialize a chain for minimization
+    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
+
+    # Perform energy minimization for the initial configuration of the current temperature run
+    minimized_positions = steepest_descent_minimization(
+        positions=initial_positions_for_minimization,
+        compute_forces_func=compute_total_forces,
+        step_size=minimization_step_size,
+        tolerance=minimization_tolerance,
+        box_size=box_size,
+        k=k,
+        r0=r0,
+        epsilon_repulsive=epsilon_repulsive,
+        epsilon_attractive=epsilon_attractive,
+        sigma=sigma,
+        lj_cutoff=lj_force_cutoff,
+        max_iterations=minimization_max_iterations
+    )
+
+    # Use minimized positions as the starting point for MD simulation
+    positions = minimized_positions
+
+    # Initialize velocities for the current temperature run
+    velocities = initialize_velocities(n_particles, target_temperature, mass)
+
+    # Initial forces calculation using the minimized positions
+    forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
+
+    # List to store potential energy during data collection phase
+    potential_energy_per_step = []
+
+    # Main simulation loop for the current temperature
+    for step in range(total_simulation_steps):
+        # Integrate equations of motion using Velocity Verlet
+        positions, velocities, forces = velocity_verlet(
+            positions, velocities, forces, dt, mass, box_size,
+            k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff
+        )
+
+        # Apply thermostat (velocity rescaling)
+        if step % rescale_interval == 0:
+            velocities = rescale_velocities(velocities, target_temperature, mass, n_particles)
+
+        # Data collection after equilibration
+        if step >= equilibration_steps:
+            current_potential_energy = calculate_total_potential_energy(
+                positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma,
+                lj_potential_cutoff_repulsive, lj_potential_cutoff_attractive
+            )
+            potential_energy_per_step.append(current_potential_energy)
+
+    # After simulation for current temperature, compute properties
+    Rg = calculate_radius_of_gyration(positions)
+    Ree = calculate_end_to_end_distance(positions)
+
+    Rg_values_adjusted.append(Rg)
+    Ree_values_adjusted.append(Ree)
+    potential_energies_avg_adjusted.append(np.mean(potential_energy_per_step))
+
+    # Store final positions for lowest and highest temperatures
+    if T == temperatures[0]:
+        positions_low_temp_adjusted = np.copy(positions)
+    if T == temperatures[-1]:
+        positions_high_temp_adjusted = np.copy(positions)
+
+positions_low_temp = None
+positions_high_temp = None
+
+
+for T in temperatures:
+    target_temperature = T
+
+    # Initialize a chain for minimization
+    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
+
+    # Perform energy minimization for the initial configuration of the current temperature run
+    print(f"  Minimizing initial configuration for T = {target_temperature:.2f}...")
+    minimized_positions = steepest_descent_minimization(
+        positions=initial_positions_for_minimization,
+        compute_forces_func=compute_total_forces,
+        step_size=minimization_step_size,
+        tolerance=minimization_tolerance,
+        box_size=box_size,
+        k=k,
+        r0=r0,
+        epsilon_repulsive=epsilon_repulsive,
+        epsilon_attractive=epsilon_attractive,
+        sigma=sigma,
+        lj_cutoff=lj_force_cutoff,
+        max_iterations=minimization_max_iterations
+    )
+
+    # Use minimized positions as the starting point for MD simulation
+    positions = minimized_positions
+
+    # Initialize velocities for the current temperature run
+    velocities = initialize_velocities(n_particles, target_temperature, mass)
+
+    # Initial forces calculation using the minimized positions
+    forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
+
+    # List to store potential energy during data collection phase
+    potential_energy_per_step = []
+
+# Plot Radius of Gyration vs Temperature (Adjusted Parameters)
+plt.figure(figsize=(8, 6))
+plt.plot(temperatures, Rg_values_adjusted, marker='o', linestyle='-', color='blue', label='Rg (Adjusted Params)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('Radius of Gyration (Rg)')
+plt.title('Radius of Gyration vs Temperature (Adjusted Parameters)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot End-to-End Distance vs Temperature (Adjusted Parameters)
+plt.figure(figsize=(8, 6))
+plt.plot(temperatures, Ree_values_adjusted, marker='o', linestyle='-', color='green', label='Ree (Adjusted Params)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('End-to-End Distance (Ree)')
+plt.title('End-to-End Distance vs Temperature (Adjusted Parameters)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot Average Potential Energy vs Temperature (Adjusted Parameters)
+plt.figure(figsize=(8, 6))
+plt.plot(temperatures, potential_energies_avg_adjusted, marker='o', linestyle='-', color='red', label='Average Potential Energy (Adjusted Params)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('Average Potential Energy (Reduced Units)')
+plt.title('Average Potential Energy vs Temperature (Adjusted Parameters)')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# Plot 1: Radius of Gyration vs Temperature (Original vs. Adjusted)
+plt.figure(figsize=(10, 7))
+plt.plot(temperatures, Rg_values, marker='o', linestyle='-', color='blue', label='Rg (Original Parameters)')
+plt.plot(temperatures, Rg_values_adjusted, marker='x', linestyle='--', color='red', label='Rg (Adjusted Parameters)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('Radius of Gyration (Rg)')
+plt.title('Radius of Gyration vs Temperature: Original vs. Adjusted Parameters')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot 2: End-to-End Distance vs Temperature (Original vs. Adjusted)
+plt.figure(figsize=(10, 7))
+plt.plot(temperatures, Ree_values, marker='o', linestyle='-', color='blue', label='Ree (Original Parameters)')
+plt.plot(temperatures, Ree_values_adjusted, marker='x', linestyle='--', color='red', label='Ree (Adjusted Parameters)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('End-to-End Distance (Ree)')
+plt.title('End-to-End Distance vs Temperature: Original vs. Adjusted Parameters')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Plot 3: Average Potential Energy vs Temperature (Original vs. Adjusted)
+plt.figure(figsize=(10, 7))
+plt.plot(temperatures, potential_energies_avg, marker='o', linestyle='-', color='blue', label='Avg Potential Energy (Original Parameters)')
+plt.plot(temperatures, potential_energies_avg_adjusted, marker='x', linestyle='--', color='red', label='Avg Potential Energy (Adjusted Parameters)')
+plt.xlabel('Temperature (Reduced Units)')
+plt.ylabel('Average Potential Energy (Reduced Units)')
+plt.title('Average Potential Energy vs Temperature: Original vs. Adjusted Parameters')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Create a new figure and two 3D subplots
+fig = plt.figure(figsize=(12, 6))
+
+# Plot configuration at the lowest temperature (Adjusted Parameters)
+ax1 = fig.add_subplot(121, projection='3d')
+ax1.scatter(positions_low_temp_adjusted[:, 0], positions_low_temp_adjusted[:, 1], positions_low_temp_adjusted[:, 2],
+           color='red', s=50, label='Beads at Lowest Temp (Adjusted)')
+for i in range(n_particles - 1):
+    ax1.plot(positions_low_temp_adjusted[i:i+2, 0], positions_low_temp_adjusted[i:i+2, 1], positions_low_temp_adjusted[i:i+2, 2],
+             color='gray', linestyle='-', linewidth=1)
+ax1.set_title('Polymer Configuration at Lowest Temperature (Adjusted Parameters)')
+ax1.set_xlabel('X')
+ax1.set_ylabel('Y')
+ax1.set_zlabel('Z')
+ax1.view_init(elev=20, azim=-60)
+
+# Plot configuration at the highest temperature (Adjusted Parameters)
+ax2 = fig.add_subplot(122, projection='3d')
+ax2.scatter(positions_high_temp_adjusted[:, 0], positions_high_temp_adjusted[:, 1], positions_high_temp_adjusted[:, 2],
+           color='blue', s=50, label='Beads at Highest Temp (Adjusted)')
+for i in range(n_particles - 1):
+    ax2.plot(positions_high_temp_adjusted[i:i+2, 0], positions_high_temp_adjusted[i:i+2, 1], positions_high_temp_adjusted[i:i+2, 2],
+             color='lightblue', linestyle='-', linewidth=1)
+ax2.set_title('Polymer Configuration at Highest Temperature (Adjusted Parameters)')
+ax2.set_xlabel('X')
+ax2.set_ylabel('Y')
+ax2.set_zlabel('Z')
+ax2.view_init(elev=20, azim=-60)
+
+plt.tight_layout()
+plt.show()
