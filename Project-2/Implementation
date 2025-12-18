@@ -2,42 +2,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# Define Boltzmann constant for reduced units
-k_B = 1.0
+k_B = 1.0                                                               # Boltzmann's constant
 
-# 2. Implement apply_pbc function
-def apply_pbc(position, box_size):
+def apply_pbc(position, box_size):                                      # Defines periodic boundary conditions           
     return np.mod(position, box_size)
 
-# 3. Implement minimum_image function
-def minimum_image(displacement, box_size):
+def minimum_image(displacement, box_size):                              # Minimum image function
     return displacement - box_size * np.round(displacement / box_size)
 
-# 4. Implement initialize_chain function
-def initialize_chain(n_particles, box_size, r0):
+def initialize_chain(n_particles, box_size, r0):                        # Initializes chain function
     positions = np.zeros((n_particles, 3))
     current_position = np.array([box_size / 2, box_size / 2, box_size / 2])
     positions[0] = current_position
     for i in range(1, n_particles):
-        direction = np.random.rand(3) - 0.5 # Random vector centered around zero
-        direction = direction / np.linalg.norm(direction) # Normalize to unit vector
+        direction = np.random.rand(3) - 0.5
+        direction = direction / np.linalg.norm(direction)
         next_position = current_position + r0 * direction
         positions[i] = apply_pbc(next_position, box_size)
         current_position = positions[i]
     return positions
 
-# 5. Implement initialize_velocities function
-def initialize_velocities(n_particles, target_temperature, mass):
-    # Maxwell-Boltzmann distribution for velocities
-    # The standard deviation is sqrt(k_B * T / m)
+def initialize_velocities(n_particles, target_temperature, mass):       # Initializes velocity function
     scale = np.sqrt(k_B * target_temperature / mass)
     velocities = np.random.normal(scale=scale, size=(n_particles, 3))
-    # Remove net momentum
     velocities -= np.mean(velocities, axis=0)
     return velocities
 
-# 6. Implement compute_harmonic_forces function
-def compute_harmonic_forces(positions, k, r0, box_size):
+def compute_harmonic_forces(positions, k, r0, box_size):                # Harmonic forces function
     n_particles = positions.shape[0]
     forces = np.zeros_like(positions)
     for i in range(n_particles - 1):
@@ -45,22 +36,20 @@ def compute_harmonic_forces(positions, k, r0, box_size):
         displacement = minimum_image(displacement, box_size)
         distance = np.linalg.norm(displacement)
         if distance == 0:
-            continue # Avoid division by zero
+            continue
         force_magnitude = -k * (distance - r0)
         force = force_magnitude * (displacement / distance)
         forces[i] -= force
         forces[i+1] += force
     return forces
 
-# 7. Implement compute_lennard_jones_forces function
-def compute_lennard_jones_forces(positions, epsilon_repulsive, epsilon_attractive, sigma, box_size, lj_cutoff):
+def compute_lennard_jones_forces(positions, epsilon_repulsive, epsilon_attractive, sigma, box_size, lj_cutoff):    # Lennard_Jones forces function
     n_particles = positions.shape[0]
     forces = np.zeros_like(positions)
-    lj_cutoff_repulsive_wca = (2**(1/6)) * sigma # WCA cutoff for 1-3 interactions
+    lj_cutoff_repulsive_wca = (2**(1/6)) * sigm
 
     for i in range(n_particles):
         for j in range(i + 1, n_particles):
-            # Bonded particles (abs(i-j) == 1) are handled by harmonic forces
             if abs(i - j) == 1:
                 continue
 
@@ -71,19 +60,16 @@ def compute_lennard_jones_forces(positions, epsilon_repulsive, epsilon_attractiv
             if distance == 0:
                 continue # Avoid division by zero
 
-            # Apply general LJ cutoff
-            if distance < lj_cutoff:
+            if distance < lj_cutoff:                                                         # Lennard_Jones cutoff distance
                 r_inv = 1.0 / distance
                 r6 = (sigma * r_inv)**6
                 r12 = r6**2
 
                 force_magnitude = 0.0
-                if abs(i - j) == 2: # 1-3 repulsive interactions
+                if abs(i - j) == 2:
                     if distance < lj_cutoff_repulsive_wca:
-                        # WCA potential derivative
                         force_magnitude = 24 * epsilon_repulsive * (2 * r12 - r6) * r_inv
-                elif abs(i - j) > 2: # Non-bonded attractive interactions
-                    # Full LJ potential derivative
+                elif abs(i - j) > 2:
                     force_magnitude = 24 * epsilon_attractive * (2 * r12 - r6) * r_inv
 
                 if force_magnitude != 0.0:
@@ -92,38 +78,31 @@ def compute_lennard_jones_forces(positions, epsilon_repulsive, epsilon_attractiv
                     forces[j] += force
     return forces
 
-# 8. Implement compute_total_forces function
-def compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff):
+def compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff):                           # Compute total forces function
     forces_harmonic = compute_harmonic_forces(positions, k, r0, box_size)
     forces_lj = compute_lennard_jones_forces(positions, epsilon_repulsive, epsilon_attractive, sigma, box_size, lj_cutoff)
     return forces_harmonic + forces_lj
 
-# 9. Implement velocity_verlet function
-def velocity_verlet(positions, velocities, forces, dt, mass, box_size, k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff):
+def velocity_verlet(positions, velocities, forces, dt, mass, box_size, k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff):  # velocity_verlet function
     velocities_half = velocities + 0.5 * forces / mass * dt
     positions_new = positions + velocities_half * dt
     positions_new = apply_pbc(positions_new, box_size)
 
-    # Need to compute new forces using the updated positions
     forces_new = compute_total_forces(positions_new, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff)
 
     velocities_new = velocities_half + 0.5 * forces_new / mass * dt
     return positions_new, velocities_new, forces_new
 
-# 10. Implement rescale_velocities function
-def rescale_velocities(velocities, target_temperature, mass, n_particles):
+def rescale_velocities(velocities, target_temperature, mass, n_particles):               # Rescale velocities function
     kinetic_energy = 0.5 * mass * np.sum(np.linalg.norm(velocities, axis=1)**2)
-    # For 3D particles, degrees of freedom = 3 * n_particles
-    # Subtract 3 for center of mass velocity if removed, but typically (3/2)NkT for temperature def
     current_temperature = (2 / (3 * n_particles)) * kinetic_energy / k_B
-    if current_temperature == 0: # Avoid division by zero
-        return velocities # Cannot rescale if current_temperature is zero
+    if current_temperature == 0:
+        return velocities
     scaling_factor = np.sqrt(target_temperature / current_temperature)
     velocities_scaled = velocities * scaling_factor
     return velocities_scaled
 
-# 11. Implement calculate_harmonic_potential_total function
-def calculate_harmonic_potential_total(positions, k, r0, box_size):
+def calculate_harmonic_potential_total(positions, k, r0, box_size):                     # Harmonic potential calculation function
     n_particles = positions.shape[0]
     total_U = 0.0
     for i in range(n_particles - 1):
@@ -133,13 +112,12 @@ def calculate_harmonic_potential_total(positions, k, r0, box_size):
         total_U += 0.5 * k * (distance - r0)**2
     return total_U
 
-# 12. Implement calculate_lj_potential_total function
 def calculate_lj_potential_total(positions, epsilon_repulsive, epsilon_attractive, sigma, box_size, lj_cutoff_repulsive, lj_cutoff_attractive):
     n_particles = positions.shape[0]
     total_U = 0.0
     for i in range(n_particles):
         for j in range(i + 1, n_particles):
-            if abs(i - j) == 1: # Bonded particles, handled by harmonic potential
+            if abs(i - j) == 1:
                 continue
 
             displacement = positions[j] - positions[i]
@@ -153,94 +131,78 @@ def calculate_lj_potential_total(positions, epsilon_repulsive, epsilon_attractiv
             r6 = (sigma * r_inv)**6
             r12 = r6**2
 
-            if abs(i - j) == 2: # 1-3 repulsive interactions (WCA)
+            if abs(i - j) == 2:
                 if distance < lj_cutoff_repulsive:
-                    # Shifted WCA potential (U_WCA(r) - U_WCA(r_cutoff) - (r - r_cutoff)*dU_WCA/dr|_r_cutoff)
-                    # The pseudocode implies just U_WCA(r) - U_WCA(r_cutoff), and U_WCA(r_cutoff)=epsilon_repulsive
                     total_U += 4 * epsilon_repulsive * (r12 - r6) + epsilon_repulsive
-            elif abs(i - j) > 2: # Non-bonded attractive interactions
+            elif abs(i - j) > 2:
                 if distance < lj_cutoff_attractive:
                     total_U += 4 * epsilon_attractive * (r12 - r6)
     return total_U
 
-# Lists to store collected data
-Rg_values = []
-Ree_values = []
-potential_energies_avg = []
+Rg_values = []                   # Creates list radius of gyration
+Ree_values = []                  # Creates list for end-to-end distance
+potential_energies_avg = []      # Creates list for average potential energies
 
-# 13. Implement calculate_total_potential_energy function
 def calculate_total_potential_energy(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff_repulsive, lj_cutoff_attractive):
     U_harmonic = calculate_harmonic_potential_total(positions, k, r0, box_size)
     U_lj = calculate_lj_potential_total(positions, epsilon_repulsive, epsilon_attractive, sigma, box_size, lj_cutoff_repulsive, lj_cutoff_attractive)
     return U_harmonic + U_lj
 
-# 14. Implement calculate_radius_of_gyration function
-def calculate_radius_of_gyration(positions):
+def calculate_radius_of_gyration(positions):                               # Radius of gyration function
     center_of_mass = np.mean(positions, axis=0)
     Rg_squared = np.mean(np.sum((positions - center_of_mass)**2, axis=1))
     Rg = np.sqrt(Rg_squared)
     return Rg
 
-# 15. Implement calculate_end_to_end_distance function
-def calculate_end_to_end_distance(positions):
+def calculate_end_to_end_distance(positions):                              # End-to-end distance function
     Ree = np.linalg.norm(positions[-1] - positions[0])
     return Ree
 
-# Simulation parameters
-dt = 0.01  # Time step
-total_simulation_steps = 10000  # Total number of simulation steps for each temperature run
-equilibration_steps = 2000  # Number of steps for equilibration before data collection
-box_size = 100.0  # Size of the cubic box
-k = 1.0  # Spring constant
-mass = 1.0  # Particle mass
-r0 = 1.0  # Equilibrium bond length
-n_particles = 20  # Number of particles
-epsilon_repulsive = 1.0  # Depth of repulsive LJ potential
-epsilon_attractive = 0.5  # Depth of attractive LJ potential
-sigma = 1.0  # LJ potential parameter
+dt = 0.01                                                                  # Time step
+total_simulation_steps = 10000                                             # Total number of simulation steps for each temperature run
+equilibration_steps = 2000                                                 # Number of steps for equilibration before data collection
+box_size = 100.0                                                           # Size of the cubic box
+k = 1.0                                                                    # Spring constant
+mass = 1.0                                                                 # Particle mass
+r0 = 1.0                                                                   # Equilibrium bond length
+n_particles = 20                                                           # Number of particles
+epsilon_repulsive = 1.0                                                    # Depth of repulsive LJ potential
+epsilon_attractive = 0.5                                                   # Depth of attractive LJ potential
+sigma = 1.0                                                                # LJ potential parameter
 
-# Lennard-Jones cutoff distances
-lj_force_cutoff = 2.5 * sigma  # Cutoff distance for Lennard-Jones forces
-lj_potential_cutoff_repulsive = (2**(1/6)) * sigma  # Cutoff for repulsive 1-3 LJ potential energy (WCA)
-lj_potential_cutoff_attractive = 2.5 * sigma # Cutoff for attractive non-bonded LJ potential energy
+lj_force_cutoff = 2.5 * sigma                                              # Cutoff distance for Lennard-Jones forces
+lj_potential_cutoff_repulsive = (2**(1/6)) * sigma
+lj_potential_cutoff_attractive = 2.5 * sigma
 
-rescale_interval = 100  # Steps between velocity rescaling
-temperatures = np.linspace(0.1, 1.0, 10)  # Array of target temperatures
+rescale_interval = 100                                                     # Steps between velocity rescaling
+temperatures = np.linspace(0.1, 1.0, 10)                                   # Array of temperatures
 
 for T in temperatures:
     target_temperature = T
 
-    # Re-initialize positions and velocities for each temperature run
-    positions = initialize_chain(n_particles, box_size, r0)
-    velocities = initialize_velocities(n_particles, target_temperature, mass)
+    positions = initialize_chain(n_particles, box_size, r0)                     # Initalize position at each temperature
+    velocities = initialize_velocities(n_particles, target_temperature, mass)   # Initalize velocity at each temperature
 
-    # Initial forces calculation
     forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
 
-    # List to store potential energy during data collection phase
-    potential_energy_per_step = []
+    potential_energy_per_step = []                                             # Creates list to store potential energy per step
 
-    # Main simulation loop for the current temperature
-    for step in range(total_simulation_steps):
-        # Integrate equations of motion using Velocity Verlet
+    for step in range(total_simulation_steps):                                 # Implementing below functions at each temperature
         positions, velocities, forces = velocity_verlet(
             positions, velocities, forces, dt, mass, box_size,
             k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff
         )
 
-        # Apply thermostat (velocity rescaling)
         if step % rescale_interval == 0:
-            velocities = rescale_velocities(velocities, target_temperature, mass, n_particles)
+            velocities = rescale_velocities(velocities, target_temperature, mass, n_particles)    # Rescaling velocities with a thermostat
 
-        # Data collection after equilibration
         if step >= equilibration_steps:
             current_potential_energy = calculate_total_potential_energy(
                 positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma,
                 lj_potential_cutoff_repulsive, lj_potential_cutoff_attractive
             )
-            potential_energy_per_step.append(current_potential_energy)
+            potential_energy_per_step.append(current_potential_energy)                          # Update potential energy after equilibration
 
-    # After simulation for current temperature, compute properties
     Rg = calculate_radius_of_gyration(positions)
     Ree = calculate_end_to_end_distance(positions)
 
@@ -248,7 +210,6 @@ for T in temperatures:
     Ree_values.append(Ree)
     potential_energies_avg.append(np.mean(potential_energy_per_step))
 
-# Plot Radius of Gyration vs Temperature
 plt.figure(figsize=(8, 6))
 plt.plot(temperatures, Rg_values, marker='o', linestyle='-', color='blue', label='Radius of Gyration (Rg)')
 plt.xlabel('Temperature (Reduced Units)')
@@ -258,7 +219,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Plot End-to-End Distance vs Temperature
 plt.figure(figsize=(8, 6))
 plt.plot(temperatures, Ree_values, marker='o', linestyle='-', color='green', label='End-to-End Distance (Ree)')
 plt.xlabel('Temperature (Reduced Units)')
@@ -268,7 +228,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Plot Average Potential Energy vs Temperature
 plt.figure(figsize=(8, 6))
 plt.plot(temperatures, potential_energies_avg, marker='o', linestyle='-', color='red', label='Average Potential Energy')
 plt.xlabel('Temperature (Reduced Units)')
@@ -278,44 +237,27 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# 16. Implement steepest_descent_minimization function
-def steepest_descent_minimization(positions, compute_forces_func, step_size, tolerance, box_size,
+def steepest_descent_minimization(positions, compute_forces_func, step_size, tolerance, box_size,           # Steepest descent minimization function
                                   k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff,
                                   max_iterations=10000):
 
     for iteration in range(max_iterations):
-        # a. Calculate the current forces
         forces = compute_forces_func(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_cutoff)
 
-        # b. Calculate the total force magnitude
-        total_force_magnitude = np.linalg.norm(forces) # Sum of the magnitudes of all forces
+        total_force_magnitude = np.linalg.norm(forces)                                                      # Sum of the magnitudes of all forces
 
-        # c. If the total force magnitude is below tolerance, break the loop
         if total_force_magnitude < tolerance:
             print(f"Energy minimization converged in {iteration + 1} iterations. Total force magnitude: {total_force_magnitude:.4f}")
             break
 
-        # d. Update the positions by moving them in the direction opposite to the forces
-        positions -= step_size * forces
+        positions -= step_size * forces                                                                    # Update positions opposite to forces
 
-        # e. Ensure that the updated positions are wrapped using apply_pbc
-        positions = apply_pbc(positions, box_size)
+        positions = apply_pbc(positions, box_size)                                                         # Apply periodic boundary conditions
 
     else:
         print(f"Energy minimization did not converge after {max_iterations} iterations. Final force magnitude: {total_force_magnitude:.4f}")
 
     return positions
-
-
-# Simulation parameters (from 10fa15ea) - Only necessary ones included
-box_size = 100.0  # Size of the cubic box
-k = 1.0  # Spring constant
-r0 = 1.0  # Equilibrium bond length
-n_particles = 20  # Number of particles
-epsilon_repulsive = 1.0  # Depth of repulsive LJ potential
-epsilon_attractive = 0.5  # Depth of attractive LJ potential
-sigma = 1.0  # LJ potential parameter
-lj_force_cutoff = 2.5 * sigma  # Cutoff distance for Lennard-Jones forces
 
 # Define minimization parameters
 minimization_step_size = 0.001  # Step size for steepest descent
@@ -374,101 +316,6 @@ ax2.view_init(elev=20, azim=-60)
 plt.tight_layout()
 plt.show()
 
-for T in temperatures:
-    target_temperature = T
-
-    # Initialize a chain for minimization
-    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
-
-    # Perform energy minimization for the initial configuration of the current temperature run
-    print(f"  Minimizing initial configuration for T = {target_temperature:.2f}...")
-    minimized_positions = steepest_descent_minimization(
-        positions=initial_positions_for_minimization,
-        compute_forces_func=compute_total_forces,
-        step_size=minimization_step_size,
-        tolerance=minimization_tolerance,
-        box_size=box_size,
-        k=k,
-        r0=r0,
-        epsilon_repulsive=epsilon_repulsive,
-        epsilon_attractive=epsilon_attractive,
-        sigma=sigma,
-        lj_cutoff=lj_force_cutoff,
-        max_iterations=minimization_max_iterations
-    )
-
-    # Use minimized positions as the starting point for MD simulation
-    positions = minimized_positions
-
-    # Initialize velocities for the current temperature run
-    velocities = initialize_velocities(n_particles, target_temperature, mass)
-
-    # Initial forces calculation using the minimized positions
-    forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
-
-    # List to store potential energy during data collection phase
-    potential_energy_per_step = []
-
-    # Main simulation loop for the current temperature
-    for step in range(total_simulation_steps):
-        # Integrate equations of motion using Velocity Verlet
-        positions, velocities, forces = velocity_verlet(
-            positions, velocities, forces, dt, mass, box_size,
-            k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff
-        )
-
-        # Apply thermostat (velocity rescaling)
-        if step % rescale_interval == 0:
-            velocities = rescale_velocities(velocities, target_temperature, mass, n_particles)
-
-        # Data collection after equilibration
-        if step >= equilibration_steps:
-            current_potential_energy = calculate_total_potential_energy(
-                positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma,
-                lj_potential_cutoff_repulsive, lj_potential_cutoff_attractive
-            )
-            potential_energy_per_step.append(current_potential_energy)
-
-    # After simulation for current temperature, compute properties
-    Rg = calculate_radius_of_gyration(positions)
-    Ree = calculate_end_to_end_distance(positions)
-
-    Rg_values.append(Rg)
-    Ree_values.append(Ree)
-    potential_energies_avg.append(np.mean(potential_energy_per_step))
-
-
-# Plot Radius of Gyration vs Temperature
-plt.figure(figsize=(8, 6))
-plt.plot(temperatures, Rg_values, marker='o', linestyle='-', color='blue', label='Radius of Gyration (Rg)')
-plt.xlabel('Temperature (Reduced Units)')
-plt.ylabel('Radius of Gyration (Rg)')
-plt.title('Radius of Gyration vs Temperature (with Energy Minimization)')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# Plot End-to-End Distance vs Temperature
-plt.figure(figsize=(8, 6))
-plt.plot(temperatures, Ree_values, marker='o', linestyle='-', color='green', label='End-to-End Distance (Ree)')
-plt.xlabel('Temperature (Reduced Units)')
-plt.ylabel('End-to-End Distance (Ree)')
-plt.title('End-to-End Distance vs Temperature (with Energy Minimization)')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# Plot Average Potential Energy vs Temperature
-plt.figure(figsize=(8, 6))
-plt.plot(temperatures, potential_energies_avg, marker='o', linestyle='-', color='red', label='Average Potential Energy')
-plt.xlabel('Temperature (Reduced Units)')
-plt.ylabel('Average Potential Energy (Reduced Units)')
-plt.title('Average Potential Energy vs Temperature (with Energy Minimization)')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-
 
 # --- MODIFIED PARAMETERS FOR THIS RUN ---
 epsilon_repulsive = 2.0  # Increased depth of repulsive LJ potential (was 1.0)
@@ -482,31 +329,25 @@ lj_force_cutoff = 2.5 * sigma  # Cutoff distance for Lennard-Jones forces
 lj_potential_cutoff_repulsive = (2**(1/6)) * sigma  # Cutoff for repulsive 1-3 LJ potential energy (WCA)
 lj_potential_cutoff_attractive = 2.5 * sigma # Cutoff for attractive non-bonded LJ potential energy
 
-rescale_interval = 100  # Steps between velocity rescaling
-temperatures = np.linspace(0.1, 1.0, 10)  # Array of target temperatures
+rescale_interval = 100                                     # Steps between velocity rescaling
+temperatures = np.linspace(0.1, 1.0, 10)
 
-# Minimization parameters (from 6385393b)
-minimization_step_size = 0.001  # Step size for steepest descent
-minimization_tolerance = 0.1    # Convergence criterion for total force magnitude
-minimization_max_iterations = 50000 # Increased max_iterations for potentially slower convergence
+minimization_step_size = 0.001                             # Step size for steepest descent
+minimization_tolerance = 0.1                               # Convergence criterion for total force magnitude
+minimization_max_iterations = 50000                        # Increased max_iterations for potentially slower convergence
 
-
-# Lists to store collected data for the adjusted parameters
 Rg_values_adjusted = []
 Ree_values_adjusted = []
 potential_energies_avg_adjusted = []
 
-# Declare variables to store final configurations at lowest and highest temperatures for adjusted parameters
 positions_low_temp_adjusted = None
 positions_high_temp_adjusted = None
 
 for T in temperatures:
     target_temperature = T
 
-    # Initialize a chain for minimization
-    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
+    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)             # Creates an initial chain for minimization
 
-    # Perform energy minimization for the initial configuration of the current temperature run
     minimized_positions = steepest_descent_minimization(
         positions=initial_positions_for_minimization,
         compute_forces_func=compute_total_forces,
@@ -522,31 +363,23 @@ for T in temperatures:
         max_iterations=minimization_max_iterations
     )
 
-    # Use minimized positions as the starting point for MD simulation
     positions = minimized_positions
 
-    # Initialize velocities for the current temperature run
     velocities = initialize_velocities(n_particles, target_temperature, mass)
 
-    # Initial forces calculation using the minimized positions
     forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
 
-    # List to store potential energy during data collection phase
     potential_energy_per_step = []
 
-    # Main simulation loop for the current temperature
     for step in range(total_simulation_steps):
-        # Integrate equations of motion using Velocity Verlet
         positions, velocities, forces = velocity_verlet(
             positions, velocities, forces, dt, mass, box_size,
             k, r0, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff
         )
 
-        # Apply thermostat (velocity rescaling)
         if step % rescale_interval == 0:
             velocities = rescale_velocities(velocities, target_temperature, mass, n_particles)
 
-        # Data collection after equilibration
         if step >= equilibration_steps:
             current_potential_energy = calculate_total_potential_energy(
                 positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma,
@@ -554,7 +387,6 @@ for T in temperatures:
             )
             potential_energy_per_step.append(current_potential_energy)
 
-    # After simulation for current temperature, compute properties
     Rg = calculate_radius_of_gyration(positions)
     Ree = calculate_end_to_end_distance(positions)
 
@@ -562,52 +394,11 @@ for T in temperatures:
     Ree_values_adjusted.append(Ree)
     potential_energies_avg_adjusted.append(np.mean(potential_energy_per_step))
 
-    # Store final positions for lowest and highest temperatures
     if T == temperatures[0]:
-        positions_low_temp_adjusted = np.copy(positions)
+        positions_low_temp_adjusted = np.copy(positions)        # Stores position at lowest temperature
     if T == temperatures[-1]:
-        positions_high_temp_adjusted = np.copy(positions)
+        positions_high_temp_adjusted = np.copy(positions)       # Stores position at highest temperature
 
-positions_low_temp = None
-positions_high_temp = None
-
-
-for T in temperatures:
-    target_temperature = T
-
-    # Initialize a chain for minimization
-    initial_positions_for_minimization = initialize_chain(n_particles, box_size, r0)
-
-    # Perform energy minimization for the initial configuration of the current temperature run
-    print(f"  Minimizing initial configuration for T = {target_temperature:.2f}...")
-    minimized_positions = steepest_descent_minimization(
-        positions=initial_positions_for_minimization,
-        compute_forces_func=compute_total_forces,
-        step_size=minimization_step_size,
-        tolerance=minimization_tolerance,
-        box_size=box_size,
-        k=k,
-        r0=r0,
-        epsilon_repulsive=epsilon_repulsive,
-        epsilon_attractive=epsilon_attractive,
-        sigma=sigma,
-        lj_cutoff=lj_force_cutoff,
-        max_iterations=minimization_max_iterations
-    )
-
-    # Use minimized positions as the starting point for MD simulation
-    positions = minimized_positions
-
-    # Initialize velocities for the current temperature run
-    velocities = initialize_velocities(n_particles, target_temperature, mass)
-
-    # Initial forces calculation using the minimized positions
-    forces = compute_total_forces(positions, k, r0, box_size, epsilon_repulsive, epsilon_attractive, sigma, lj_force_cutoff)
-
-    # List to store potential energy during data collection phase
-    potential_energy_per_step = []
-
-# Plot Radius of Gyration vs Temperature (Adjusted Parameters)
 plt.figure(figsize=(8, 6))
 plt.plot(temperatures, Rg_values_adjusted, marker='o', linestyle='-', color='blue', label='Rg (Adjusted Params)')
 plt.xlabel('Temperature (Reduced Units)')
@@ -617,7 +408,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Plot End-to-End Distance vs Temperature (Adjusted Parameters)
 plt.figure(figsize=(8, 6))
 plt.plot(temperatures, Ree_values_adjusted, marker='o', linestyle='-', color='green', label='Ree (Adjusted Params)')
 plt.xlabel('Temperature (Reduced Units)')
@@ -627,7 +417,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Plot Average Potential Energy vs Temperature (Adjusted Parameters)
 plt.figure(figsize=(8, 6))
 plt.plot(temperatures, potential_energies_avg_adjusted, marker='o', linestyle='-', color='red', label='Average Potential Energy (Adjusted Params)')
 plt.xlabel('Temperature (Reduced Units)')
@@ -637,8 +426,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-
-# Plot 1: Radius of Gyration vs Temperature (Original vs. Adjusted)
 plt.figure(figsize=(10, 7))
 plt.plot(temperatures, Rg_values, marker='o', linestyle='-', color='blue', label='Rg (Original Parameters)')
 plt.plot(temperatures, Rg_values_adjusted, marker='x', linestyle='--', color='red', label='Rg (Adjusted Parameters)')
@@ -649,7 +436,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Plot 2: End-to-End Distance vs Temperature (Original vs. Adjusted)
 plt.figure(figsize=(10, 7))
 plt.plot(temperatures, Ree_values, marker='o', linestyle='-', color='blue', label='Ree (Original Parameters)')
 plt.plot(temperatures, Ree_values_adjusted, marker='x', linestyle='--', color='red', label='Ree (Adjusted Parameters)')
@@ -660,7 +446,6 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Plot 3: Average Potential Energy vs Temperature (Original vs. Adjusted)
 plt.figure(figsize=(10, 7))
 plt.plot(temperatures, potential_energies_avg, marker='o', linestyle='-', color='blue', label='Avg Potential Energy (Original Parameters)')
 plt.plot(temperatures, potential_energies_avg_adjusted, marker='x', linestyle='--', color='red', label='Avg Potential Energy (Adjusted Parameters)')
@@ -671,10 +456,8 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# Create a new figure and two 3D subplots
 fig = plt.figure(figsize=(12, 6))
 
-# Plot configuration at the lowest temperature (Adjusted Parameters)
 ax1 = fig.add_subplot(121, projection='3d')
 ax1.scatter(positions_low_temp_adjusted[:, 0], positions_low_temp_adjusted[:, 1], positions_low_temp_adjusted[:, 2],
            color='red', s=50, label='Beads at Lowest Temp (Adjusted)')
@@ -687,7 +470,7 @@ ax1.set_ylabel('Y')
 ax1.set_zlabel('Z')
 ax1.view_init(elev=20, azim=-60)
 
-# Plot configuration at the highest temperature (Adjusted Parameters)
+
 ax2 = fig.add_subplot(122, projection='3d')
 ax2.scatter(positions_high_temp_adjusted[:, 0], positions_high_temp_adjusted[:, 1], positions_high_temp_adjusted[:, 2],
            color='blue', s=50, label='Beads at Highest Temp (Adjusted)')
