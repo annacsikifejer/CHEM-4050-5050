@@ -1,7 +1,7 @@
 ## CHEM 4050-5050 Computational Problem Solving in the Chemical Sciences
 
 ### Contents: 
-#### This Github repository houses the homework assignments and projects for CHEM 4050-5050 Computational Problem Solving in the Chemical Sciences. Each assignment is housed in a folder and contains files from Jupyter notebook as well as python and markdown files. There are five homework assignments and two projects.
+#### This Github repository contains the homework assignments and projects for CHEM 4050-5050 Computational Problem Solving in the Chemical Sciences. Each assignment is housed in a folder and contains files from Jupyter notebook as well as python and markdown files. There are five homework assignments and two projects.
 
 ### Instructions:
 #### To navigate the repository, select the folder of interest from the homepage of the repository to open its contents. Some folders contain subfolders, which can be navigated in the same way. To run the code, you can either clone the file or download the file to your local computer. All files have been tested to run on Google Colab.
